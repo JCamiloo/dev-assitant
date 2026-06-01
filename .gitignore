@@ -1,0 +1,27 @@
+.env
+
+# Vector database (generated with npm run ingest)
+data/vectors.db
+data/*.db
+
+node_modules/
+
+# Build output
+dist/
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Issues generados por el agente (demo)
+issues/
