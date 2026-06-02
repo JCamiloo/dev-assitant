@@ -1,16 +1,6 @@
-import { config, validateConfig } from './config.js';
+import { startCLI } from './chat/cli.js';
 
-function main(): void {
-  validateConfig();
-
-  console.info('DevAssistant configured correctly');
-  console.info('Active Configuration:', {
-    'LLM Provider': config.provider,
-    'Anthropic Model': config.anthropicModel,
-    'OpenAI Model': config.openAIModel,
-    'Docs path': config.docsPath,
-    'RAG top-K': config.ragTopK,
-  });
-}
-
-main();
+startCLI().catch((error) => {
+  console.error('Error starting CLI:', error.message);
+  process.exit(1);
+});
