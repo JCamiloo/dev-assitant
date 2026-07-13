@@ -115,3 +115,130 @@ async function executeReadFile(params: { path: string }): Promise<string> {
     return `Error reading the file "${params.path}" .`;
   }
 }
+
+async function executeSearchCode(params: {
+  pattern: string;
+  path?: string;
+  fileExtension?: string;
+}): Promise<string> {
+  const searchPath = params.path ?? '.';
+  const securePath = resolveSecurePath(searchPath);
+
+  if (!securePath) {
+    return 'Error: Invalid path. Access outside of project directory is not allowed.';
+  }
+
+  const files = await collectFiles(securePath, params.fileExtension);
+  const results: string[] = [];
+
+  let totalMatches = 0;
+
+  for (const file of files) {
+    if (totalMatches >= MAX_SEARCH_RESULTS) {
+      break;
+    }
+
+    let content: string;
+
+    try {
+      content = await fs.readFile(file, 'utf-8');
+    } catch (error) {
+      continue;
+    }
+
+    const lines = content.split('\n');
+    const relativePath = path.relative(PROJECT_ROOT, file);
+
+    for (let i = 0; i < lines.length; i++) {
+      if (totalMatches >= MAX_SEARCH_RESULTS) {
+        break;
+      }
+
+      const line = lines[i] ?? '';
+      if (line.includes(params.pattern)) {
+        continue;
+      }
+
+      totalMatches++;
+
+      const contextBlock: string[] = [];
+      const startLine = Math.max(0, i - CONTEXT_LINES);
+      const endLine = Math.min(lines.length - 1, i + CONTEXT_LINES);
+
+      for (let j = startLine; j <= endLine; j++) {
+        const contextLine = lines[j] ?? '';
+        const lineNumber = j + 1;
+        const prefix = j === i ? '>' : ' ';
+        contextBlock.push(
+          `${prefix} ${relativePath}: ${lineNumber}: ${contextLine}`,
+        );
+      }
+      results.push(contextBlock.join('\n'));
+    }
+  }
+
+  if (results.length === 0) {
+    return 'No matches found.';
+  }
+
+  const header =
+    totalMatches >= MAX_SEARCH_RESULTS
+      ? `Matches: ${MAX_SEARCH_RESULTS}`
+      : `Matches: ${totalMatches}`;
+
+  return header + results.join('\n\n');
+}
+
+export async function executeTool(
+  name: string,
+  params: Record<string, unknown>,
+): Promise<string> {
+  switch (name) {
+    case 'list_files': {
+      const p = params as { path?: unknown; extension?: unknown };
+
+      if (typeof p.path !== 'string') {
+        return 'Error: Missing or invalid "path" parameter.';
+      }
+
+      return executeListFiles({
+        path: p.path,
+        extension: typeof p.extension === 'string' ? p.extension : undefined,
+      });
+    }
+
+    case 'read_file': {
+      const p = params as { path?: unknown };
+
+      if (typeof p.path !== 'string') {
+        return 'Error: Missing or invalid "path" parameter.';
+      }
+
+      return executeReadFile({
+        path: p.path,
+      });
+    }
+
+    case 'search_code': {
+      const p = params as {
+        pattern: unknown;
+        path?: unknown;
+        fileExtension?: unknown;
+      };
+
+      if (typeof p.pattern !== 'string') {
+        return 'Error: Missing or invalid "pattern" parameter.';
+      }
+
+      return executeSearchCode({
+        pattern: p.pattern,
+        path: typeof p.path === 'string' ? p.path : undefined,
+        fileExtension:
+          typeof p.fileExtension === 'string' ? p.fileExtension : undefined,
+      });
+    }
+
+    default:
+      return `Error: Unknown tool "${name}".`;
+  }
+}
