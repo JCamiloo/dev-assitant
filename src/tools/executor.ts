@@ -81,8 +81,8 @@ async function executeListFiles(params: {
   return relativePaths.join('\\n');
 }
 
-async function executeReadFile(params: { path: string }): Promise<string> {
-  const securePath = resolveSecurePath(params.path);
+async function executeReadFile(params: { file_path: string }): Promise<string> {
+  const securePath = resolveSecurePath(params.file_path);
 
   if (!securePath) {
     return 'Error: Invalid path. Access outside of project directory is not allowed.';
@@ -91,11 +91,11 @@ async function executeReadFile(params: { path: string }): Promise<string> {
   try {
     const stat = await fs.stat(securePath);
     if (stat.isDirectory()) {
-      return `Error:  "${params.path}" is a directory. Not a file.`;
+      return `Error:  "${params.file_path}" is a directory. Not a file.`;
     }
 
     if (stat.size > MAX_FILE_SIZE) {
-      return `Error: The file "${params.path}" exceeds the maximum allowed size of ${MAX_FILE_SIZE} characters.`;
+      return `Error: The file "${params.file_path}" exceeds the maximum allowed size of ${MAX_FILE_SIZE} characters.`;
     }
 
     const content = await fs.readFile(securePath, 'utf-8');
@@ -109,17 +109,17 @@ async function executeReadFile(params: { path: string }): Promise<string> {
     const err = error as NodeJS.ErrnoException;
 
     if (err.code === 'ENOENT') {
-      return `The file "${params.path}" does not exist.`;
+      return `The file "${params.file_path}" does not exist.`;
     }
 
-    return `Error reading the file "${params.path}" .`;
+    return `Error reading the file "${params.file_path}" .`;
   }
 }
 
 async function executeSearchCode(params: {
   pattern: string;
   path?: string;
-  fileExtension?: string;
+  file_extension?: string;
 }): Promise<string> {
   const searchPath = params.path ?? '.';
   const securePath = resolveSecurePath(searchPath);
@@ -128,7 +128,7 @@ async function executeSearchCode(params: {
     return 'Error: Invalid path. Access outside of project directory is not allowed.';
   }
 
-  const files = await collectFiles(securePath, params.fileExtension);
+  const files = await collectFiles(securePath, params.file_extension);
   const results: string[] = [];
 
   let totalMatches = 0;
@@ -193,6 +193,7 @@ export async function executeTool(
   name: string,
   params: Record<string, unknown>,
 ): Promise<string> {
+  console.log('executeTool', { name, params });
   switch (name) {
     case 'list_files': {
       const p = params as { path?: unknown; extension?: unknown };
@@ -208,14 +209,14 @@ export async function executeTool(
     }
 
     case 'read_file': {
-      const p = params as { path?: unknown };
+      const p = params as { file_path?: unknown };
 
-      if (typeof p.path !== 'string') {
-        return 'Error: Missing or invalid "path" parameter.';
+      if (typeof p.file_path !== 'string') {
+        return 'Error: Missing or invalid "file_path" parameter.';
       }
 
       return executeReadFile({
-        path: p.path,
+        file_path: p.file_path,
       });
     }
 
@@ -223,7 +224,7 @@ export async function executeTool(
       const p = params as {
         pattern: unknown;
         path?: unknown;
-        fileExtension?: unknown;
+        file_extension?: unknown;
       };
 
       if (typeof p.pattern !== 'string') {
@@ -233,8 +234,8 @@ export async function executeTool(
       return executeSearchCode({
         pattern: p.pattern,
         path: typeof p.path === 'string' ? p.path : undefined,
-        fileExtension:
-          typeof p.fileExtension === 'string' ? p.fileExtension : undefined,
+        file_extension:
+          typeof p.file_extension === 'string' ? p.file_extension : undefined,
       });
     }
 
